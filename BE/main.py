@@ -33,11 +33,13 @@ def load_data(dataset_name = 'imdb_top_1000.csv'):
 def embbedings_and_store(docs):
     embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
     persist_directory = "chroma_db"
-
-    # save ke local
-    db = Chroma.from_documents(
-        documents=docs, embedding=embeddings, persist_directory=persist_directory
-    )
+    
+    if os.path.exists('chroma_db/chroma.sqlite3'):
+        db = Chroma(persist_directory=persist_directory, embedding_function=embeddings)
+    else:
+        db = Chroma.from_documents(
+            documents=docs, embedding=embeddings, persist_directory=persist_directory
+        )
     return db
 
 def create_conversational_chain(vector_store):
@@ -45,10 +47,9 @@ def create_conversational_chain(vector_store):
     llm = ChatOpenAI(model="gpt-3.5-turbo-0125")
 
     memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
-
     chain = ConversationalRetrievalChain.from_llm(llm=llm, chain_type='stuff',
-                                                 retriever=vector_store.as_retriever(search_kwargs={"k": 2}),
-                                                 memory=memory)
+                                                    retriever=vector_store.as_retriever(search_kwargs={"k": 2}),
+                                                    memory=memory)
     return chain
 
 def conversation_chat(query, chain, history=None):

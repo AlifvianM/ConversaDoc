@@ -26,8 +26,6 @@ def initialize_session_state():
     
 def main():
     initialize_session_state()
-
-    print(st.session_state)
     # reply_container = st.container()
     # container = st.container()
 
@@ -47,7 +45,6 @@ def main():
     #             message(st.session_state["generated"][i], key=str(i), avatar_style="bottts", seed="Aneka")
 
     if prompt := st.chat_input():
-        print(prompt)
 
         st.session_state.messages.append({"role": "user", "content": prompt})
         st.chat_message("user").write(prompt)
