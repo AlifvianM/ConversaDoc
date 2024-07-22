@@ -13,6 +13,9 @@ def initialize_session_state():
     # if 'past' not in st.session_state:
     #     st.session_state['past'] = ["Hey! 👋"]
 
+    if 'history' not in st.session_state:
+        st.session_state['history'] = []
+
     if "messages" not in st.session_state:
         st.session_state["messages"] = [{"role": "assistant", "content": "How can I help you?"}]
 
@@ -49,10 +52,10 @@ def main():
         st.session_state.messages.append({"role": "user", "content": prompt})
         st.chat_message("user").write(prompt)
 
-        response = run_chat(prompt)
+        response = run_chat(prompt, history=st.session_state['history'])
         st.session_state.messages.append({"role": "assistant", "content": response})
+        print(st.session_state)
         st.chat_message("assistant").write(response)
-
         
 
 if __name__ == '__main__':
