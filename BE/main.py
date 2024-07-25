@@ -35,18 +35,6 @@ def load_data(
         dataset_name = 'imdb_top_1000.csv'
     ):
     TEXT = ""
-    # movies = pd.read_csv('title.basics.tsv', sep='\t')
-    # movies = pd.read_csv(dataset_name)
-    # movies = movies.rename(columns={
-    #     "Overview":"movies_description",
-    #     "Series_Title":"movies_title"
-    # })
-    # movies['page_content'] = "Title: " + movies['movies_title'] + "\n" + \
-    #                         "Genre: " + movies['Genre'] + "\n" + \
-    #                         "Description: " + movies['movies_description']
-    # movies = movies[["page_content", "Poster_Link"]]
-    # docs = DataFrameLoader(movies,page_content_column = "page_content").load()
-
     # loader = WebBaseLoader(
     # web_paths=("https://lilianweng.github.io/posts/2023-06-23-agent/",),
     # bs_kwargs=dict(
@@ -74,11 +62,13 @@ def embbedings_and_store(docs):
     # text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
     # splits = text_splitter.split_documents(docs)
     
-    text_splitter = CharacterTextSplitter(separator="\n", chunk_size=1000, chunk_overlap=200, length_function=len)
+    text_splitter = CharacterTextSplitter(separator=" ", chunk_size=5000, chunk_overlap=1000, length_function=len)
     text_chunks = text_splitter.split_text(docs)
     
     vectorstore = Chroma.from_texts(text_chunks, embedding=embeddings, persist_directory=persist_directory)
-    retriever = vectorstore.as_retriever(search_kwargs={"k": 2})
+    retriever = vectorstore.as_retriever(
+        # search_kwargs={"k": 2}
+    )
     # db = Chroma.from_documents(
     #         documents=docs, embedding=embeddings, persist_directory=persist_directory
     # )
@@ -123,7 +113,6 @@ def create_conversational_chain(retriever):
         ]
     )
     question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
-
     rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
     
     store = {}
