@@ -19,6 +19,7 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain.text_splitter import CharacterTextSplitter
+from langchain.chains import ConversationalRetrievalChain
 
 
 import warnings
@@ -28,25 +29,11 @@ warnings.filterwarnings("ignore")
 load_dotenv()
 openai_api_key = os.getenv('OPENAI_API_KEY')
 llm = ChatOpenAI(model="gpt-3.5-turbo-0125")
-
-
 def load_data(
         uploaded_files,
         dataset_name = 'imdb_top_1000.csv'
     ):
     TEXT = ""
-    # movies = pd.read_csv('title.basics.tsv', sep='\t')
-    # movies = pd.read_csv(dataset_name)
-    # movies = movies.rename(columns={
-    #     "Overview":"movies_description",
-    #     "Series_Title":"movies_title"
-    # })
-    # movies['page_content'] = "Title: " + movies['movies_title'] + "\n" + \
-    #                         "Genre: " + movies['Genre'] + "\n" + \
-    #                         "Description: " + movies['movies_description']
-    # movies = movies[["page_content", "Poster_Link"]]
-    # docs = DataFrameLoader(movies,page_content_column = "page_content").load()
-
     # loader = WebBaseLoader(
     # web_paths=("https://lilianweng.github.io/posts/2023-06-23-agent/",),
     # bs_kwargs=dict(
@@ -57,13 +44,14 @@ def load_data(
     # )
     # docs = loader.load()
 
-    for file in uploaded_files:
-        if file.type == "application/pdf":
-            pdf_reader = PdfReader(file)
-            text = ""
-            for page in pdf_reader.pages:
-                text += page.extract_text()
-        TEXT += text
+    # for file in uploaded_files:
+        # import pdb;pdb.set_trace()
+    if uploaded_files.type == "application/pdf":
+        pdf_reader = PdfReader()
+        text = ""
+        for page in pdf_reader.pages:
+            text += page.extract_text()
+    # TEXT += text
     docs = TEXT
     return docs
 
@@ -71,27 +59,26 @@ def embbedings_and_store(docs):
     embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
     persist_directory = "chroma_db"
     
-    # text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-    # splits = text_splitter.split_documents(docs)
-    
-    text_splitter = CharacterTextSplitter(separator="\n", chunk_size=1000, chunk_overlap=200, length_function=len)
+    text_splitter = CharacterTextSplitter(separator=" ", chunk_size=5000, chunk_overlap=1000, length_function=len)
     text_chunks = text_splitter.split_text(docs)
     
     vectorstore = Chroma.from_texts(text_chunks, embedding=embeddings, persist_directory=persist_directory)
     retriever = vectorstore.as_retriever(search_kwargs={"k": 2})
-    # db = Chroma.from_documents(
-    #         documents=docs, embedding=embeddings, persist_directory=persist_directory
-    # )
     return retriever
 
 def create_conversational_chain(retriever):
     ### Contextualize question ###
     contextualize_q_system_prompt = (
-        "Given a chat history and the latest user question "
-        "which might reference context in the chat history, "
-        "formulate a standalone question which can be understood "
-        "without the chat history. Do NOT answer the question, "
-        "just reformulate it if needed and otherwise return it as is."
+        """
+        Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.
+
+        Chat History:
+
+        Human: <CHAT FROM HUMAN>
+        Assistant: <CHAT RESPONSE>
+        Follow Up Input: <CURRENT CHAT FROM HUMAN>
+        Standalone question:
+        """
     )
     contextualize_q_prompt = ChatPromptTemplate.from_messages(
         [
@@ -123,7 +110,6 @@ def create_conversational_chain(retriever):
         ]
     )
     question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
-
     rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
     
     store = {}
@@ -143,6 +129,19 @@ def create_conversational_chain(retriever):
     )
     return conversational_rag_chain
 
+def start_conversation(vector_embeddings):
+    memory = ConversationBufferMemory(
+        memory_key='chat_history',
+        return_messages=True
+    )
+    conversation = ConversationalRetrievalChain.from_llm(
+        llm=llm,
+        retriever=vector_embeddings,
+        memory=memory
+    )
+
+    return conversation
+
 def conversation_chat(query, chain, history=None):
     result = chain.invoke(
         {"input": query},
@@ -153,10 +152,6 @@ def conversation_chat(query, chain, history=None):
     return result
 
 def run_chat(query_input, file, history = None):
-    
-    # data_loader = load_data(
-    #     'dataset/imdb_top_1000.csv'
-    # )
     vectorstores = embbedings_and_store(file)
     chain = create_conversational_chain(vectorstores)
     result = conversation_chat(
@@ -164,5 +159,4 @@ def run_chat(query_input, file, history = None):
         chain=chain, 
         history=history
     )
-
     return result
