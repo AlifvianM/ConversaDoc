@@ -3,7 +3,6 @@ from langchain_community.document_loaders import DataFrameLoader
 from langchain_openai import OpenAIEmbeddings
 from dotenv import load_dotenv
 import os
-import bs4
 from PyPDF2 import PdfReader
 from langchain_chroma import Chroma
 from langchain_openai import ChatOpenAI
