@@ -1,3 +1,5 @@
 .venv/
 chroma_db/
 .env
+__pycache__/
+chroma_db_main_test/
